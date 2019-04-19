@@ -1,1 +1,1 @@
-pkuseg-python的java实现
+[pkuseg-python](https://github.com/lancopku/pkuseg-python)的java实现
