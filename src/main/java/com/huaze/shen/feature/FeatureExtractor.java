@@ -1,8 +1,6 @@
 package com.huaze.shen.feature;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -16,19 +14,29 @@ public class FeatureExtractor {
     private Set<String> unigramSet;
     private Set<String> bigramSet;
     private List<List<String>> charLists;
-    private Set<String> featureSet;
+    private Map<String, Integer> featureIndexMap;
+    private Map<String, Integer> tagIndexMap;
+    private String featureSaveDir;
     private int wordMax = 6;
     private int wordMin = 2;
 
     public FeatureExtractor(String trainFile) {
         this.trainFile = trainFile;
+        init();
+    }
+
+    private void init() {
         unigramSet = new HashSet<>();
         bigramSet = new HashSet<>();
         charLists = new ArrayList<>();
-        featureSet = new HashSet<>();
+        featureIndexMap = new HashMap<>();
+        tagIndexMap = new HashMap<>();
+        featureSaveDir = "src/main/resources/data/feature_save/";
+        buildFeature();
+        saveFeature();
     }
 
-    public void build() {
+    private void buildFeature() {
         try {
             InputStream inputStream = FeatureExtractor.class.getClassLoader().getResourceAsStream(trainFile);
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
@@ -56,13 +64,23 @@ public class FeatureExtractor {
         createFeatures();
     }
 
+    private void saveFeature() {
+        saveUnigram();
+        saveBigram();
+        saveFeatureIndexMap();
+        saveTagIndexMap();
+    }
+
     private void createFeatures() {
+        Set<String> featureSet = new HashSet<>();
         for (List<String> charList : charLists) {
             for (int i = 0; i < charList.size(); i++) {
                  List<String> nodeFeatures = getNodeFeatures(i, charList);
                  featureSet.addAll(nodeFeatures);
             }
         }
+        featureToIndex(featureSet);
+        tagToIndex();
     }
 
     private List<String> getNodeFeatures(int index, List<String> charList) {
@@ -255,9 +273,69 @@ public class FeatureExtractor {
         return String.join("", charList.subList(startIndex, startIndex + range));
     }
 
+    private void featureToIndex(Set<String> featureSet) {
+        for (String feature : featureSet) {
+            if (!featureIndexMap.containsKey(feature)) {
+                featureIndexMap.put(feature, featureIndexMap.size());
+            }
+        }
+    }
+
+    private void tagToIndex() {
+        String[] tags = {"B", "M", "E", "S"};
+        for (int i = 0; i < tags.length; i++) {
+            tagIndexMap.put(tags[i], i);
+        }
+    }
+
+    private void saveUnigram() {
+        String unigramFile = featureSaveDir + "unigram.txt";
+        writeSetToFile(unigramSet, unigramFile);
+    }
+
+    private void saveBigram() {
+        String bigramFile = featureSaveDir + "bigram.txt";
+        writeSetToFile(bigramSet, bigramFile);
+    }
+
+    private void saveFeatureIndexMap() {
+        String featureIndexFile = featureSaveDir + "feature_index.txt";
+        writeMapToFile(featureIndexMap, featureIndexFile);
+    }
+
+    private void saveTagIndexMap() {
+        String tagIndexFile = featureSaveDir + "tag_index.txt";
+        writeMapToFile(tagIndexMap, tagIndexFile);
+    }
+
+    private void writeSetToFile(Set<String> set, String file) {
+        try {
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
+            for (String word : set) {
+                bufferedWriter.write(word + "\n");
+            }
+            bufferedWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void writeMapToFile(Map<String, Integer> map, String file) {
+        try {
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file));
+            for (Map.Entry<String, Integer> entry : map.entrySet()) {
+                String feature = entry.getKey();
+                Integer index = entry.getValue();
+                bufferedWriter.write(feature + "\t" + index + "\n");
+            }
+            bufferedWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
         String trainFile = "data/pku_test_gold.utf8";
         FeatureExtractor featureExtractor = new FeatureExtractor(trainFile);
-        featureExtractor.build();
     }
 }
