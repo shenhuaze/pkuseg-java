@@ -42,8 +42,9 @@ public class FeatureExtractor {
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
-                // TODO: 特殊符号替换为'&'
-                String[] lineSplit = line.split("[ \t]+");
+                line = line.trim();
+                String specialCharNormalizedLine = specialCharNormalize(line);
+                String[] lineSplit = specialCharNormalizedLine.split("[ \t]+");
                 unigramSet.addAll(Arrays.asList(lineSplit));
                 for (int i = 0; i < lineSplit.length - 1; i++) {
                     bigramSet.add(String.format("%s*%s", lineSplit[i], lineSplit[i + 1]));
@@ -51,8 +52,9 @@ public class FeatureExtractor {
                 List<String> charList = new ArrayList<>();
                 for (String word : lineSplit) {
                     for (int i = 0; i < word.length(); i++) {
-                        // TODO: 字母、数字归一化
-                        charList.add(String.valueOf(word.charAt(i)));
+                        char ch = word.charAt(i);
+                        String numberLetterNormalizedChar = numberLetterNormalize(ch);
+                        charList.add(numberLetterNormalizedChar);
                     }
                 }
                 charLists.add(charList);
@@ -332,6 +334,44 @@ public class FeatureExtractor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private String specialCharNormalize(String line) {
+        StringBuilder stringBuilder = new StringBuilder();
+        char[] specialChars = "-._,|/*:".toCharArray();
+        Set<Character> specialCharSet = new HashSet<>();
+        for (char ch : specialChars) {
+            specialCharSet.add(ch);
+        }
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (specialCharSet.contains(ch)) {
+                stringBuilder.append('&');
+            } else {
+                stringBuilder.append(ch);
+            }
+        }
+        return stringBuilder.toString();
+    }
+
+    private String numberLetterNormalize(char ch) {
+        char[] numberChars = "0123456789.几二三四五六七八九十千万亿兆零１２３４５６７８９０％".toCharArray();
+        char[] letterChars = "ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｇｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ／・－".toCharArray();
+        Set<Character> numberCharSet = new HashSet<>();
+        for (char c : numberChars) {
+            numberCharSet.add(c);
+        }
+        Set<Character> letterCharSet = new HashSet<>();
+        for (char c : letterChars) {
+            letterCharSet.add(c);
+        }
+        if (numberCharSet.contains(ch)) {
+            return "**Num";
+        }
+        if (letterCharSet.contains(ch)) {
+            return "**Letter";
+        }
+        return String.valueOf(ch);
     }
 
     public static void main(String[] args) {
