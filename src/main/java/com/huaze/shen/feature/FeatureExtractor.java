@@ -43,6 +43,9 @@ public class FeatureExtractor {
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 line = line.trim();
+                if (line.length() == 0) {
+                    continue;
+                }
                 String specialCharNormalizedLine = specialCharNormalize(line);
                 String[] lineSplit = specialCharNormalizedLine.split("[ \t]+");
                 unigramSet.addAll(Arrays.asList(lineSplit));
@@ -142,11 +145,11 @@ public class FeatureExtractor {
             nodeFeatures.add("/");
         }
         // right1 + right2
-        if (index < charList.size() - 2) {
-            nodeFeatures.add("c1c2." + charList.get(index + 1) + "." + charList.get(index + 2));
-        } else {
-            nodeFeatures.add("/");
-        }
+        //if (index < charList.size() - 2) {
+        //    nodeFeatures.add("c1c2." + charList.get(index + 1) + "." + charList.get(index + 2));
+        //} else {
+        //    nodeFeatures.add("/");
+        //}
     }
 
     private void createWordBasedFeature(List<String> nodeFeatures, int index, List<String> charList) {
@@ -277,6 +280,9 @@ public class FeatureExtractor {
 
     private void featureToIndex(Set<String> featureSet) {
         for (String feature : featureSet) {
+            if ("/".equals(feature)) {
+                continue;
+            }
             if (!featureIndexMap.containsKey(feature)) {
                 featureIndexMap.put(feature, featureIndexMap.size());
             }
@@ -284,7 +290,7 @@ public class FeatureExtractor {
     }
 
     private void tagToIndex() {
-        String[] tags = {"B", "M", "E", "S"};
+        String[] tags = {"B", "B_single", "I", "I_first", "I_end"};
         for (int i = 0; i < tags.length; i++) {
             tagIndexMap.put(tags[i], i);
         }
