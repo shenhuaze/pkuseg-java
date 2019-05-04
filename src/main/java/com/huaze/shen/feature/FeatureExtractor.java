@@ -38,8 +38,7 @@ public class FeatureExtractor {
 
     private void buildFeature() {
         try {
-            InputStream inputStream = FeatureExtractor.class.getClassLoader().getResourceAsStream(trainFile);
-            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(trainFile));
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 line = line.trim();
@@ -67,6 +66,60 @@ public class FeatureExtractor {
         }
         // TODO: 去除出现频次小于阈值的特征
         createFeatures();
+    }
+
+
+    private void convertTextFileToFeatureFile(String textFile, String charTagFile, String featureFile) {
+        try {
+            BufferedReader bufferedReader = new BufferedReader(new FileReader(textFile));
+            BufferedWriter charTagFileWriter = new BufferedWriter(new FileWriter(charTagFile));
+            BufferedWriter featureFileWriter = new BufferedWriter(new FileWriter(featureFile));
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                line = line.trim();
+                if (line.length() == 0) {
+                    continue;
+                }
+                String specialCharNormalizedLine = specialCharNormalize(line);
+                String[] lineSplit = specialCharNormalizedLine.split("[ \t]+");
+                List<String> charList = new ArrayList<>();
+                List<String> tagList = new ArrayList<>();
+                for (String word : lineSplit) {
+                    for (int i = 0; i < word.length(); i++) {
+                        String tag = "";
+                        char ch = word.charAt(i);
+                        if (word.length() == 1) {
+                            tag = "B_single";
+                        } else if (i == 0) {
+                            tag = "B";
+                        } else if (i == word.length() - 1) {
+                            tag = "I_end";
+                        } else if (i == 1) {
+                            tag = "I_first";
+                        } else {
+                            tag = "I";
+                        }
+                        charTagFileWriter.write(ch + " " + tag + "\n");
+                        String numberLetterNormalizedChar = numberLetterNormalize(ch);
+                        charList.add(numberLetterNormalizedChar);
+                        tagList.add(tag);
+                    }
+                }
+                charTagFileWriter.write("\n");
+                for (int i = 0; i < tagList.size(); i++) {
+                    String tag = tagList.get(i);
+                    List<String> features = getNodeFeatures(i, charList);
+                    features.add(tag);
+                    featureFileWriter.write(String.join(" ", features) + "\n");
+                }
+                featureFileWriter.write("\n");
+            }
+            bufferedReader.close();
+            charTagFileWriter.close();
+            featureFileWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void saveFeature() {
@@ -163,7 +216,7 @@ public class FeatureExtractor {
 
     private List<String> createPrevInList(List<String> nodeFeatures, int index, List<String> charList) {
         List<String> prevInList = new ArrayList<>();
-        for (int range = wordMin; range <= wordMax; range++) {
+        for (int range = wordMax; range >= wordMin; range--) {
             String tempWord = getSubstring(index - range + 1, range, charList);
             if ("".equals(tempWord)) {
                 nodeFeatures.add("/");
@@ -183,7 +236,7 @@ public class FeatureExtractor {
 
     private List<String> createPostInList(List<String> nodeFeatures, int index, List<String> charList) {
         List<String> postInList = new ArrayList<>();
-        for (int range = wordMin; range <= wordMax; range++) {
+        for (int range = wordMax; range >= wordMin; range--) {
             String tempWord = getSubstring(index, range, charList);
             if ("".equals(tempWord)) {
                 nodeFeatures.add("/");
@@ -203,7 +256,7 @@ public class FeatureExtractor {
     
     private List<String> createPrevExcludeList(int index, List<String> charList) {
         List<String> prevExcludeList = new ArrayList<>();
-        for (int range = wordMin; range <= wordMax; range++) {
+        for (int range = wordMax; range >= wordMin; range--) {
             String tempWord = getSubstring(index - range, range, charList);
             if ("".equals(tempWord)) {
                 prevExcludeList.add("**noWord");
@@ -220,7 +273,7 @@ public class FeatureExtractor {
 
     private List<String> createPostExcludeList(int index, List<String> charList) {
         List<String> postExcludeList = new ArrayList<>();
-        for (int range = wordMin; range <= wordMax; range++) {
+        for (int range = wordMax; range >= wordMin; range--) {
             String tempWord = getSubstring(index + 1, range, charList);
             if (".".equals(tempWord)) {
                 postExcludeList.add("**noWord");
@@ -381,7 +434,11 @@ public class FeatureExtractor {
     }
 
     public static void main(String[] args) {
-        String trainFile = "data/pku_test_gold.utf8";
+        String resourcesDir = "src/main/resources/";
+        String trainFile = resourcesDir + "data/pku_test_gold.utf8";
+        String trainCharTagFile = resourcesDir + "data/pku_test_gold_char_tag.txt";
+        String trainFeatureFile = resourcesDir + "data/pku_test_gold_feature.txt";
         FeatureExtractor featureExtractor = new FeatureExtractor(trainFile);
+        featureExtractor.convertTextFileToFeatureFile(trainFile, trainCharTagFile, trainFeatureFile);
     }
 }
