@@ -1,5 +1,7 @@
 package com.huaze.shen.feature;
 
+import com.huaze.shen.util.SortMapUtil;
+
 import java.io.*;
 import java.util.*;
 
@@ -29,8 +31,8 @@ public class FeatureExtractor {
         unigramSet = new HashSet<>();
         bigramSet = new HashSet<>();
         charLists = new ArrayList<>();
-        featureIndexMap = new HashMap<>();
-        tagIndexMap = new HashMap<>();
+        featureIndexMap = new LinkedHashMap<>();
+        tagIndexMap = new LinkedHashMap<>();
         featureSaveDir = "src/main/resources/data/feature_save/";
         buildFeature();
         saveFeature();
@@ -71,11 +73,11 @@ public class FeatureExtractor {
 
     private void convertTextFileToFeatureFile(String textFile, String charTagFile, String featureFile) {
         try {
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(textFile));
+            BufferedReader textFileReader = new BufferedReader(new FileReader(textFile));
             BufferedWriter charTagFileWriter = new BufferedWriter(new FileWriter(charTagFile));
             BufferedWriter featureFileWriter = new BufferedWriter(new FileWriter(featureFile));
             String line;
-            while ((line = bufferedReader.readLine()) != null) {
+            while ((line = textFileReader.readLine()) != null) {
                 line = line.trim();
                 if (line.length() == 0) {
                     continue;
@@ -114,9 +116,51 @@ public class FeatureExtractor {
                 }
                 featureFileWriter.write("\n");
             }
-            bufferedReader.close();
+            textFileReader.close();
             charTagFileWriter.close();
             featureFileWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void convertFeatureFileToIndexFile(String featureFile, String featureIndexFile, String tagIndexFile) {
+        try {
+            BufferedReader featureFileReader = new BufferedReader(new FileReader(featureFile));
+            BufferedWriter featureIndexFileWriter = new BufferedWriter(new FileWriter(featureIndexFile));
+            BufferedWriter tagIndexFileWriter = new BufferedWriter(new FileWriter(tagIndexFile));
+            featureIndexFileWriter.write(featureIndexMap.size() + "\n\n");
+            tagIndexFileWriter.write(tagIndexMap.size() + "\n\n");
+            String line;
+            List<List<String>> featureIndexLists = new ArrayList<>();
+            List<String> tagIndexList = new ArrayList<>();
+            while ((line = featureFileReader.readLine()) != null) {
+                line = line.trim();
+                if (line.length() == 0) {
+                    for (List<String> featureIndexList : featureIndexLists) {
+                        featureIndexFileWriter.write(String.join(",", featureIndexList) + "\n");
+                    }
+                    featureIndexFileWriter.write("\n");
+                    tagIndexFileWriter.write(String.join(",", tagIndexList) + "\n\n");
+                    featureIndexLists = new ArrayList<>();
+                    tagIndexList = new ArrayList<>();
+                    continue;
+                }
+                String[] lineSplit = line.split(" ");
+                List<String> featureIndexList = new ArrayList<>();
+                for (int i = 0; i < lineSplit.length - 1; i++) {
+                    String feature = lineSplit[i];
+                    if (featureIndexMap.containsKey(feature)) {
+                        featureIndexList.add(String.valueOf(featureIndexMap.get(feature)));
+                    }
+                }
+                featureIndexLists.add(featureIndexList);
+                String tag = lineSplit[lineSplit.length - 1];
+                tagIndexList.add(String.valueOf(tagIndexMap.get(tag)));
+            }
+            featureFileReader.close();
+            featureIndexFileWriter.close();
+            tagIndexFileWriter.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -130,14 +174,20 @@ public class FeatureExtractor {
     }
 
     private void createFeatures() {
-        Set<String> featureSet = new HashSet<>();
+        Map<String, Integer> featureCountMap = new HashMap<>();
         for (List<String> charList : charLists) {
             for (int i = 0; i < charList.size(); i++) {
                  List<String> nodeFeatures = getNodeFeatures(i, charList);
-                 featureSet.addAll(nodeFeatures);
+                 for (String feature : nodeFeatures) {
+                     if (!featureCountMap.containsKey(feature)) {
+                         featureCountMap.put(feature, 0);
+                     }
+                     featureCountMap.put(feature, featureCountMap.get(feature) + 1);
+                 }
             }
         }
-        featureToIndex(featureSet);
+        Map<String, Integer> sortedFeatureCountMap = SortMapUtil.sortByKey(featureCountMap, true);
+        featureToIndex(sortedFeatureCountMap);
         tagToIndex();
     }
 
@@ -331,8 +381,8 @@ public class FeatureExtractor {
         return String.join("", charList.subList(startIndex, startIndex + range));
     }
 
-    private void featureToIndex(Set<String> featureSet) {
-        for (String feature : featureSet) {
+    private void featureToIndex(Map<String, Integer> sortedFeatureCountMap) {
+        for (String feature : sortedFeatureCountMap.keySet()) {
             if ("/".equals(feature)) {
                 continue;
             }
@@ -343,7 +393,7 @@ public class FeatureExtractor {
     }
 
     private void tagToIndex() {
-        String[] tags = {"B", "B_single", "I", "I_first", "I_end"};
+        String[] tags = {"B", "B_single", "I", "I_end", "I_first"};
         for (int i = 0; i < tags.length; i++) {
             tagIndexMap.put(tags[i], i);
         }
@@ -438,7 +488,10 @@ public class FeatureExtractor {
         String trainFile = resourcesDir + "data/pku_test_gold.utf8";
         String trainCharTagFile = resourcesDir + "data/pku_test_gold_char_tag.txt";
         String trainFeatureFile = resourcesDir + "data/pku_test_gold_feature.txt";
+        String trainFeatureIndexFile = resourcesDir + "data/pku_test_gold_feature_index.txt";
+        String trainTagIndexFile = resourcesDir + "data/pku_test_gold_tag_index.txt";
         FeatureExtractor featureExtractor = new FeatureExtractor(trainFile);
         featureExtractor.convertTextFileToFeatureFile(trainFile, trainCharTagFile, trainFeatureFile);
+        featureExtractor.convertFeatureFileToIndexFile(trainFeatureFile, trainFeatureIndexFile, trainTagIndexFile);
     }
 }
