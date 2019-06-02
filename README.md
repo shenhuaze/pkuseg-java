@@ -1,1 +1,1 @@
-[pkuseg-python](https://github.com/lancopku/pkuseg-python)的java实现
+Implementation of [pkuseg](https://github.com/lancopku/pkuseg-python) based on Java.
