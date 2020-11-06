@@ -1,1 +1,1 @@
-Implementation of [pkuseg](https://github.com/lancopku/pkuseg-python) based on Java. (Only feature extraction has been implemented by now)
+[pkuseg](https://github.com/lancopku/pkuseg-python)的java实现（暂时只实现了特征抽取部分）
